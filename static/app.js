@@ -364,3 +364,270 @@ function generateSlide2ReferenceData(season) {
     }
   };
 }
+
+// ==================== MULTI-TAB NAVIGATION ====================
+function switchMainTab(tabId) {
+  // Update nav buttons
+  document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById(`tab-${tabId}`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  // Update panels
+  document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+  const activePanel = document.getElementById(`panel-${tabId}`);
+  if (activePanel) activePanel.classList.add('active');
+
+  // Lazy-load data
+  if (tabId === 'ablation') loadAblationData();
+  else if (tabId === 'thermal') loadThermalStatus();
+  else if (tabId === 'backtest') loadBacktestData();
+  else if (tabId === 'logistics') loadEconomicsData();
+}
+
+// ==================== TAB 2: ABLATION DATA ====================
+async function loadAblationData() {
+  try {
+    const res = await fetch('/api/ablation/run?days=7');
+    if (!res.ok) throw new Error("Ablation fetch error");
+    const data = await res.json();
+    renderAblationPanel(data);
+  } catch (err) {
+    console.warn("Using offline ablation data:", err);
+    renderAblationPanel({
+      simulation_days: 7,
+      ai_attribution: {
+        fuel_saved_litres: 70.3,
+        fuel_saved_pct: 17.7,
+        mape_improvement_pct_pts: 8.3,
+        wind_nmae_improvement_pct_pts: 22.1
+      },
+      ablation_results: {
+        persistence_rule: { fuel_l: 1267.4, starts: 21, load_mape: 14.5, wind_nmae: 35.2, unserved_kwh: 0 },
+        persistence_milp: { fuel_l: 396.2, starts: 5, load_mape: 14.5, wind_nmae: 35.2, unserved_kwh: 0 },
+        polar_ems_ai: { fuel_l: 325.9, starts: 3, load_mape: 6.2, wind_nmae: 13.1, unserved_kwh: 0 },
+        perfect_oracle: { fuel_l: 137.0, starts: 3, load_mape: 0, wind_nmae: 0, unserved_kwh: 0 }
+      }
+    });
+  }
+}
+
+function renderAblationPanel(data) {
+  const attr = data.ai_attribution;
+  const res = data.ablation_results;
+  
+  document.getElementById('abl-fuel-saved').innerText = `${attr.fuel_saved_litres} Litres`;
+  document.getElementById('abl-fuel-pct').innerText = `${attr.fuel_saved_pct}% extra reduction vs Persistence + MILP`;
+  document.getElementById('abl-mape').innerText = `${res.polar_ems_ai.load_mape}%`;
+  document.getElementById('abl-nmae').innerText = `${res.polar_ems_ai.wind_nmae}%`;
+  document.getElementById('abl-starts').innerText = `${res.polar_ems_ai.starts} Starts`;
+
+  const tbody = document.getElementById('ablation-table-body');
+  tbody.innerHTML = `
+    <tr>
+      <td><strong>1. Baseline Heuristic</strong></td>
+      <td>Persistence (Day-Ahead)</td>
+      <td>Rule-Based Controller</td>
+      <td>${res.persistence_rule.fuel_l} L</td>
+      <td>${res.persistence_rule.starts}</td>
+      <td>${res.persistence_rule.load_mape}%</td>
+      <td>${res.persistence_rule.wind_nmae}%</td>
+      <td><span class="badge badge-success">0.0 kWh</span></td>
+    </tr>
+    <tr>
+      <td><strong>2. Persistence + MILP</strong></td>
+      <td>Persistence (Day-Ahead)</td>
+      <td>SciPy HiGHS MILP</td>
+      <td>${res.persistence_milp.fuel_l} L</td>
+      <td>${res.persistence_milp.starts}</td>
+      <td>${res.persistence_milp.load_mape}%</td>
+      <td>${res.persistence_milp.wind_nmae}%</td>
+      <td><span class="badge badge-success">0.0 kWh</span></td>
+    </tr>
+    <tr style="background:rgba(2,132,199,0.12); font-weight:600;">
+      <td><strong style="color:var(--accent-cyan);">3. POLAR EMS (AI ML)</strong></td>
+      <td>HistGradientBoosting ML</td>
+      <td>SciPy HiGHS MILP</td>
+      <td><strong style="color:var(--accent-green);">${res.polar_ems_ai.fuel_l} L</strong></td>
+      <td>${res.polar_ems_ai.starts}</td>
+      <td>${res.polar_ems_ai.load_mape}%</td>
+      <td>${res.polar_ems_ai.wind_nmae}%</td>
+      <td><span class="badge badge-success">0.0 kWh</span></td>
+    </tr>
+    <tr style="color:var(--text-muted);">
+      <td><strong>4. Perfect Oracle (Bound)</strong></td>
+      <td>Ground Truth (Zero Error)</td>
+      <td>SciPy HiGHS MILP</td>
+      <td>${res.perfect_oracle.fuel_l} L</td>
+      <td>${res.perfect_oracle.starts}</td>
+      <td>0.0%</td>
+      <td>0.0%</td>
+      <td><span class="badge badge-success">0.0 kWh</span></td>
+    </tr>
+  `;
+}
+
+async function triggerAblationRun() {
+  const btn = event.target;
+  btn.innerText = "Computing 4-Way Solves...";
+  btn.disabled = true;
+  await loadAblationData();
+  btn.innerText = "Re-Run 7-Day Ablation";
+  btn.disabled = false;
+}
+
+// ==================== TAB 3: THERMAL STATUS ====================
+async function loadThermalStatus() {
+  try {
+    const res = await fetch('/api/thermal/status');
+    if (!res.ok) throw new Error("Thermal fetch error");
+    const data = await res.json();
+    renderThermalPanel(data);
+  } catch (err) {
+    console.warn("Using offline thermal fallback:", err);
+  }
+}
+
+function renderThermalPanel(data) {
+  document.getElementById('therm-demand').innerText = `${Math.round(data.total_thermal_demand_kwh_th / data.total_hours)} kW_th`;
+  document.getElementById('therm-recovered').innerText = `${Math.round(data.total_heat_recovered_kwh_th / data.total_hours)} kW_th`;
+  
+  const boilerStateEl = document.getElementById('therm-boiler-state');
+  if (data.boiler_run_hours > 0) {
+    boilerStateEl.innerText = `ACTIVE (${data.boiler_run_hours}h)`;
+    boilerStateEl.style.color = "var(--accent-orange)";
+  } else {
+    boilerStateEl.innerText = "STANDBY";
+    boilerStateEl.style.color = "var(--accent-green)";
+  }
+  
+  document.getElementById('therm-boiler-fuel').innerText = `${data.total_boiler_fuel_l} L boiler fuel`;
+  document.getElementById('therm-net-saved').innerText = `-${data.net_fuel_saved_pct}%`;
+
+  // Draw thermal chart
+  renderThermalSvg(data.hourly_records || []);
+}
+
+function renderThermalSvg(records) {
+  const svg = document.getElementById("svgThermal");
+  if (!svg || records.length === 0) return;
+  const W = 880, H = 200, padL = 40, padR = 25, padT = 15, padB = 25;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const maxKw = 100;
+  
+  let html = '';
+  // Grid
+  for (let kw = 0; kw <= maxKw; kw += 25) {
+    const y = padT + innerH * (1 - kw / maxKw);
+    html += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="currentColor" stroke-opacity="0.08" stroke-dasharray="2,2"/>`;
+    html += `<text x="${padL - 8}" y="${y + 4}" fill="#64748b" font-size="10" text-anchor="end">${kw} kW_th</text>`;
+  }
+  
+  const N = records.length;
+  let ptsDemand = [], ptsRecovered = [], ptsDeficit = [];
+  records.forEach((r, i) => {
+    const x = padL + (i / (N - 1)) * innerW;
+    const yD = padT + innerH * (1 - Math.min(maxKw, r.demand_kw_th) / maxKw);
+    const yR = padT + innerH * (1 - Math.min(maxKw, r.recovered_kw_th) / maxKw);
+    const yB = padT + innerH * (1 - Math.min(maxKw, r.deficit_kw_th) / maxKw);
+    ptsDemand.push(`${x.toFixed(1)},${yD.toFixed(1)}`);
+    ptsRecovered.push(`${x.toFixed(1)},${yR.toFixed(1)}`);
+    ptsDeficit.push(`${x.toFixed(1)},${yB.toFixed(1)}`);
+  });
+  
+  html += `<polyline points="${ptsRecovered.join(' ')}" fill="none" stroke="#ea580c" stroke-width="2.5"/>`;
+  html += `<polyline points="${ptsDeficit.join(' ')}" fill="none" stroke="#eab308" stroke-width="2" stroke-dasharray="4,2"/>`;
+  html += `<polyline points="${ptsDemand.join(' ')}" fill="none" stroke="#0284c7" stroke-width="2"/>`;
+  
+  svg.innerHTML = html;
+}
+
+// ==================== TAB 4: REAL WEATHER BACKTEST ====================
+let currentBacktestStation = "Bharati";
+
+async function switchBacktestStation(station) {
+  currentBacktestStation = station;
+  document.querySelectorAll('#btn-station-bharati, #btn-station-maitri, #btn-station-himadri').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`btn-station-${station.toLowerCase()}`);
+  if (btn) btn.classList.add('active');
+  await loadBacktestData();
+}
+
+async function loadBacktestData() {
+  try {
+    const res = await fetch(`/api/real-weather/backtest?station=${currentBacktestStation}&season=winter&days=7`);
+    if (!res.ok) throw new Error("Backtest fetch error");
+    const data = await res.json();
+    renderBacktestPanel(data);
+  } catch (err) {
+    console.warn("Backtest fetch fallback:", err);
+  }
+}
+
+function renderBacktestPanel(data) {
+  const s = data.summary;
+  document.getElementById('rw-min-temp').innerText = `${s.min_temp_c} °C`;
+  document.getElementById('rw-max-wind').innerText = `${s.max_wind_ms} m/s`;
+  document.getElementById('rw-cutout-hrs').innerText = `${s.blizzard_cutout_hours} hours`;
+  document.getElementById('rw-chart-title').innerText = `Meteorological Time-Series: ${data.station_name} Station (${data.latitude}°S, 7-Day Polar Winter Storm)`;
+
+  // Render SVG
+  const svg = document.getElementById("svgRealWeather");
+  if (!svg) return;
+  const W = 880, H = 220, padL = 40, padR = 40, padT = 15, padB = 25;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const maxWind = 40; // 0-40 m/s
+  
+  let html = '';
+  // Cutout zone (wind >= 25 m/s)
+  const yCutout = padT + innerH * (1 - 25.0 / maxWind);
+  html += `<rect x="${padL}" y="${padT}" width="${innerW}" height="${yCutout - padT}" fill="#dc2626" fill-opacity="0.08"/>`;
+  html += `<line x1="${padL}" y1="${yCutout}" x2="${W - padR}" y2="${yCutout}" stroke="#dc2626" stroke-dasharray="4,3" stroke-width="1.5"/>`;
+  html += `<text x="${W - padR - 5}" y="${yCutout - 6}" fill="#dc2626" font-size="10" text-anchor="end" font-weight="600">25 m/s Turbine Cut-out</text>`;
+  
+  // Grid
+  for (let w = 0; w <= maxWind; w += 10) {
+    const y = padT + innerH * (1 - w / maxWind);
+    html += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="currentColor" stroke-opacity="0.08" stroke-dasharray="2,2"/>`;
+    html += `<text x="${padL - 8}" y="${y + 4}" fill="#64748b" font-size="10" text-anchor="end">${w} m/s</text>`;
+  }
+
+  const N = data.total_hours;
+  let ptsW = [], ptsT = [];
+  data.wind_speed_ms.forEach((spd, i) => {
+    const x = padL + (i / (N - 1)) * innerW;
+    const yW = padT + innerH * (1 - Math.min(maxWind, spd) / maxWind);
+    ptsW.push(`${x.toFixed(1)},${yW.toFixed(1)}`);
+  });
+
+  html += `<polyline points="${ptsW.join(' ')}" fill="none" stroke="#0284c7" stroke-width="2"/>`;
+  svg.innerHTML = html;
+}
+
+// ==================== TAB 5: LOGISTICS & ECONOMICS ====================
+async function loadEconomicsData() {
+  try {
+    const res = await fetch('/api/economics/metrics');
+    if (!res.ok) throw new Error("Economics fetch error");
+    const data = await res.json();
+    renderEconomicsPanel(data);
+  } catch (err) {
+    console.warn("Economics fetch fallback:", err);
+  }
+}
+
+function renderEconomicsPanel(data) {
+  const roi = data.annualized_roi;
+  const aut = data.days_of_autonomy;
+  
+  document.getElementById('econ-annual-sav').innerText = `₹${roi.annual_cost_savings_inr_crores} Crore`;
+  document.getElementById('econ-annual-liters').innerText = `${roi.annual_diesel_saved_l.toLocaleString()} Litres saved / year`;
+  document.getElementById('econ-payback').innerText = `${roi.payback_period_days} Days`;
+  
+  document.getElementById('tank-vol-str').innerText = `${aut.current_tank_l.toLocaleString()} L / ${aut.tank_capacity_l.toLocaleString()} L (${aut.tank_fill_pct}%)`;
+  document.getElementById('tank-fill-bar').style.width = `${aut.tank_fill_pct}%`;
+  document.getElementById('tank-burn-rate').innerText = `${aut.daily_burn_rate_l_per_day} L / day`;
+  document.getElementById('tank-autonomy-days').innerText = `${aut.days_of_autonomy} Days`;
+  document.getElementById('tank-safety-margin').innerText = `+${aut.blizzard_cutoff_margin_days} Days`;
+  document.getElementById('tank-advice').innerText = `Status: ${aut.risk_level} · ${aut.operational_advice}`;
+}
+

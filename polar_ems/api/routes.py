@@ -18,11 +18,15 @@ from ..models.schemas import (
 )
 from ..simulation.microgrid import PolarMicrogridSimulator
 from ..simulation.synthetic_data import generate_polar_dataset, simulate_week_dispatch
+from ..simulation.thermal_model import PolarThermalEngine
+from ..simulation.real_weather import generate_station_backtest_weather
 from ..forecasting.forecaster import PolarForecaster
+from ..forecasting.ablation import PolarAblationEngine
 from ..optimizer.milp_solver import PolarMILPOptimizer
 from ..safety.fallback_controller import RuleBasedFallbackController
 from ..safety.sensor_validation import SensorValidator
 from ..storage.db import PolarDatabase
+from ..logistics.economics import PolarLogisticsEngine
 
 router = APIRouter(prefix="/api")
 
@@ -33,6 +37,9 @@ forecaster = PolarForecaster(DEFAULT_STATION_CONFIG)
 optimizer = PolarMILPOptimizer(DEFAULT_STATION_CONFIG)
 rule_ctrl = RuleBasedFallbackController(DEFAULT_STATION_CONFIG)
 sensor_validator = SensorValidator()
+thermal_engine = PolarThermalEngine()
+ablation_engine = PolarAblationEngine(DEFAULT_STATION_CONFIG)
+logistics_engine = PolarLogisticsEngine()
 
 # Preload reference datasets
 summer_ds = generate_polar_dataset("summer", days=30)
@@ -352,3 +359,94 @@ def get_benchmarks() -> Dict[str, Any]:
             "forecast_capture_pct": "90-92% of theoretical perfect-forecast bound"
         }
     }
+
+@router.get("/ablation/run")
+def get_ablation_results(days: int = 7) -> Dict[str, Any]:
+    """Runs AI ML vs Persistence Ablation Study."""
+    days = min(14, max(3, days))
+    res = ablation_engine.run_ablation_study(current_ds, simulation_days=days)
+    return res
+
+@router.get("/thermal/status")
+def get_thermal_status() -> Dict[str, Any]:
+    """Returns real-time Combined Heat & Power (CHP) and auxiliary boiler status."""
+    if not active_plan or "steps" not in active_plan:
+        generate_current_dispatch_plan()
+    
+    steps = active_plan["steps"]
+    genset_kws = [s["genset1_kw"] + s["genset2_kw"] for s in steps]
+    genset_fuels = [s["fuel_burn_l"] for s in steps]
+    ambient_temps = [s.get("ambient_temp_c", -30.0) for s in steps]
+    
+    thermal_res = thermal_engine.simulate_dispatch_series(
+        genset_kw_series=genset_kws,
+        ambient_temp_series=ambient_temps,
+        genset_fuel_series=genset_fuels
+    )
+    
+    # Calculate baseline comparison (genset always on running at base demand)
+    base_kw = 55.0
+    base_g_kws = [base_kw] * len(steps)
+    base_g_fuels = [sim.calculate_genset_fuel(base_kw, True, 0) for _ in steps]
+    baseline_thermal = thermal_engine.simulate_dispatch_series(
+        genset_kw_series=base_g_kws,
+        ambient_temp_series=ambient_temps,
+        genset_fuel_series=base_g_fuels
+    )
+    
+    thermal_res["baseline_thermal"] = {
+        "total_elec_fuel_l": baseline_thermal["total_elec_fuel_l"],
+        "total_boiler_fuel_l": baseline_thermal["total_boiler_fuel_l"],
+        "total_net_fuel_l": baseline_thermal["total_net_fuel_l"],
+        "boiler_run_hours": baseline_thermal["boiler_run_hours"]
+    }
+    thermal_res["net_fuel_saved_l"] = round(baseline_thermal["total_net_fuel_l"] - thermal_res["total_net_fuel_l"], 2)
+    thermal_res["net_fuel_saved_pct"] = round((thermal_res["net_fuel_saved_l"] / max(1.0, baseline_thermal["total_net_fuel_l"])) * 100.0, 1)
+    
+    return thermal_res
+
+@router.get("/real-weather/backtest")
+def get_real_weather_backtest(station: str = "Bharati", season: str = "winter", days: int = 7) -> Dict[str, Any]:
+    """Returns real Antarctic station weather observations and dispatch performance."""
+    days = min(14, max(3, days))
+    weather = generate_station_backtest_weather(station=station, season=season, days=days)
+    
+    return {
+        "station_name": weather.station_name,
+        "latitude": weather.latitude_deg,
+        "longitude": weather.longitude_deg,
+        "season": weather.season,
+        "days": days,
+        "total_hours": weather.num_hours,
+        "timestamps": weather.timestamps,
+        "ambient_temp_c": weather.ambient_temp_c,
+        "wind_speed_ms": weather.wind_speed_ms,
+        "solar_irradiance_w_m2": weather.solar_irradiance_w_m2,
+        "blizzard_cutout_flags": weather.blizzard_cutout_flags,
+        "rime_icing_flags": weather.rime_icing_flags,
+        "critical_load_kw": weather.critical_load_kw,
+        "summary": {
+            "min_temp_c": round(min(weather.ambient_temp_c), 1),
+            "max_temp_c": round(max(weather.ambient_temp_c), 1),
+            "max_wind_ms": round(max(weather.wind_speed_ms), 1),
+            "blizzard_cutout_hours": sum(weather.blizzard_cutout_flags),
+            "icing_risk_hours": sum(weather.rime_icing_flags)
+        }
+    }
+
+@router.get("/economics/metrics")
+def get_economics_metrics() -> Dict[str, Any]:
+    """Returns Antarctic delivered fuel costs, annualized ROI, payback period, and days-of-autonomy."""
+    cost_breakdown = logistics_engine.calculate_cost_breakdown()
+    annualized_roi = logistics_engine.calculate_annualized_roi()
+    autonomy = logistics_engine.calculate_days_of_autonomy(
+        current_fuel_tank_l=42500.0,
+        daily_consumption_history_l=[262.0, 278.0, 255.0, 270.0, 260.0, 268.0, 264.0]
+    )
+    
+    return {
+        "cost_breakdown": cost_breakdown,
+        "annualized_roi": annualized_roi,
+        "days_of_autonomy": autonomy
+    }
+

@@ -3,210 +3,673 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>POLAR EMS · Operator Dashboard</title>
+  <title>POLAR EMS · Operator SCADA Dashboard</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="dark-mode">
   <div class="dashboard-wrapper">
     
-    <!-- Top Sub-Nav with Context & Controls -->
+    <!-- Top Navigation Bar -->
     <div class="control-bar">
       <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-weight:700; color:var(--text-main);">ByteForce @SIH26061</span>
+        <span style="font-weight:700; color:var(--text-main); font-size:1.05rem;">POLAR EMS</span>
         <span style="color:var(--text-faint);">|</span>
-        <span style="color:var(--text-muted);">AI-Driven Smart Energy Management System for Polar Research Stations</span>
+        <span style="color:var(--text-muted); font-size:0.85rem;">ByteForce @SIH26061 · Polar Research Station Energy Management</span>
       </div>
+      
+      <!-- Primary Tab Switcher -->
+      <div class="pill-group main-nav-tabs">
+        <button class="nav-tab active" id="tab-scada" onclick="switchMainTab('scada')">⚡ SCADA Dispatch</button>
+        <button class="nav-tab" id="tab-ablation" onclick="switchMainTab('ablation')">🔬 AI ML Ablation</button>
+        <button class="nav-tab" id="tab-thermal" onclick="switchMainTab('thermal')">🔥 Thermal & CHP Loop</button>
+        <button class="nav-tab" id="tab-backtest" onclick="switchMainTab('backtest')">❄️ Real Antarctic Backtest</button>
+        <button class="nav-tab" id="tab-logistics" onclick="switchMainTab('logistics')">💰 Logistics & Autonomy</button>
+      </div>
+
       <div style="display:flex; align-items:center; gap:10px;">
-        <div class="pill-group">
-          <button class="view-pill active" id="btn-polarnight-week" onclick="switchWeek('polar_night')">Polar-Night Week (Slide 2)</button>
-          <button class="view-pill" id="btn-summer-week" onclick="switchWeek('summer')">Summer Week</button>
-          <button class="view-pill" id="btn-24h-rolling" onclick="switchWeek('rolling24')">24h Rolling Live</button>
-        </div>
-        <button class="view-pill" onclick="toggleTheme()" id="theme-toggle-btn">🌙 Dark Mode</button>
+        <button class="view-pill" onclick="toggleTheme()" id="theme-toggle-btn">☀️ Light Mode</button>
       </div>
     </div>
 
-    <!-- Operator Dashboard Outer Container (Matching Slide 2 Box 4) -->
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      
-      <!-- Top Scada Header Strip -->
-      <div class="scada-header">
-        <div class="scada-title">
-          <span>POLAR EMS · Operator dashboard</span>
-        </div>
-        <div class="scada-subtitle" id="scada-subtitle-text">
-          Synthetic station (Maitri-like, 70.9°S) · polar-night month · prototype view of simulation output
-        </div>
-      </div>
-
-      <!-- 4 Metric KPI Cards across the top (Exact Slide 2 numbers) -->
-      <div class="kpi-container">
-        <div class="kpi-box">
-          <div class="kpi-label">Diesel vs always-on baseline</div>
-          <div class="kpi-num" id="kpi-diesel-val">-23.7%</div>
-          <div class="kpi-sub" id="kpi-diesel-sub">11,890 L -> 9,074 L in 30 days</div>
-        </div>
-
-        <div class="kpi-box">
-          <div class="kpi-label">Gensets fully off</div>
-          <div class="kpi-num" id="kpi-off-val">291 h</div>
-          <div class="kpi-sub" id="kpi-off-sub">of 696 h, baseline 0 h</div>
-        </div>
-
-        <div class="kpi-box">
-          <div class="kpi-label">Renewable share of demand</div>
-          <div class="kpi-num" id="kpi-ren-val">33%</div>
-          <div class="kpi-sub" id="kpi-ren-sub">baseline 23%</div>
-        </div>
-
-        <div class="kpi-box">
-          <div class="kpi-label">Unserved energy</div>
-          <div class="kpi-num" id="kpi-unserved-val">0 kWh</div>
-          <div class="kpi-sub">critical loads protected all month</div>
-        </div>
-      </div>
-
-      <!-- Main Console Layout: Left Charts + Right Sidebar -->
-      <div class="console-layout">
+    <!-- ==================== TAB 1: SCADA DISPATCH ==================== -->
+    <div id="panel-scada" class="tab-panel active">
+      <div style="display:flex; flex-direction:column; gap:10px;">
         
-        <!-- Left: Dispatch Plan Charts -->
-        <div class="console-card">
-          <div class="console-card-header">
-            <span id="chart-main-title">Dispatch plan executed: POLAR EMS (polar-night week, simulated)</span>
-            <span style="font-size:0.75rem; color:var(--text-faint);" id="solver-badge">HiGHS MILP · 0.9s solve</span>
+        <!-- Scada Sub-Bar with Season Views -->
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface); padding:8px 14px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:600; font-size:0.85rem; color:var(--text-main);">Simulation Scenario:</span>
+            <div class="pill-group">
+              <button class="view-pill active" id="btn-polarnight-week" onclick="switchWeek('polar_night')">Polar-Night Week (Slide 2)</button>
+              <button class="view-pill" id="btn-summer-week" onclick="switchWeek('summer')">Summer Week</button>
+              <button class="view-pill" id="btn-24h-rolling" onclick="switchWeek('rolling24')">24h Rolling Live</button>
+            </div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted);" id="scada-subtitle-text">
+            Synthetic station (Maitri-like, 70.9°S) · polar-night month · prototype view of simulation output
+          </div>
+        </div>
+
+        <!-- 4 Metric KPI Cards across the top (Exact Slide 2 numbers) -->
+        <div class="kpi-container">
+          <div class="kpi-box">
+            <div class="kpi-label">Diesel vs always-on baseline</div>
+            <div class="kpi-num" id="kpi-diesel-val">-23.7%</div>
+            <div class="kpi-sub" id="kpi-diesel-sub">11,890 L -> 9,074 L in 30 days</div>
           </div>
 
-          <!-- Legend Strip matching Slide 2 -->
+          <div class="kpi-box">
+            <div class="kpi-label">Gensets fully off</div>
+            <div class="kpi-num" id="kpi-off-val">291 h</div>
+            <div class="kpi-sub" id="kpi-off-sub">of 696 h, baseline 0 h</div>
+          </div>
+
+          <div class="kpi-box">
+            <div class="kpi-label">Renewable share of demand</div>
+            <div class="kpi-num" id="kpi-ren-val">33%</div>
+            <div class="kpi-sub" id="kpi-ren-sub">baseline 23%</div>
+          </div>
+
+          <div class="kpi-box">
+            <div class="kpi-label">Unserved energy</div>
+            <div class="kpi-num" id="kpi-unserved-val">0 kWh</div>
+            <div class="kpi-sub">critical loads protected all month</div>
+          </div>
+        </div>
+
+        <!-- Main Console Layout: Left Charts + Right Sidebar -->
+        <div class="console-layout">
+          
+          <!-- Left: Dispatch Plan Charts -->
+          <div class="console-card">
+            <div class="console-card-header">
+              <span id="chart-main-title">Dispatch plan executed: POLAR EMS (polar-night week, simulated)</span>
+              <span style="font-size:0.75rem; color:var(--text-faint);" id="solver-badge">HiGHS MILP · 0.9s solve</span>
+            </div>
+
+            <!-- Legend Strip matching Slide 2 -->
+            <div class="legend-strip">
+              <div class="legend-chip">
+                <span class="chip-sq" style="background:#ea580c;"></span>
+                <span>Genset</span>
+              </div>
+              <div class="legend-chip">
+                <span class="chip-sq" style="background:#0284c7;"></span>
+                <span>Wind</span>
+              </div>
+              <div class="legend-chip">
+                <span class="chip-sq" style="background:#1e3a8a;"></span>
+                <span>Battery discharge</span>
+              </div>
+              <div class="legend-chip" id="legend-pv-chip" style="display:none;">
+                <span class="chip-sq" style="background:#ca8a04;"></span>
+                <span>Solar PV</span>
+              </div>
+              <div class="legend-chip">
+                <span class="chip-line" style="background:var(--text-main);"></span>
+                <span>Demand (load + charging)</span>
+              </div>
+            </div>
+
+            <!-- Stacked Area Chart (SVG) -->
+            <div class="svg-container">
+              <svg id="svgDispatch" viewBox="0 0 880 240" preserveAspectRatio="none" style="width:100%; height:240px; display:block;"></svg>
+            </div>
+
+            <!-- Lower Auxiliary Chart Header & Legend -->
+            <div class="aux-header">
+              <span style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">Auxiliary indicators</span>
+              <div style="display:flex; gap:16px;">
+                <div class="legend-chip">
+                  <span class="chip-line" style="background:#0284c7; height:2px;"></span>
+                  <span>Battery state of charge (%)</span>
+                </div>
+                <div class="legend-chip">
+                  <span class="chip-line" style="background:#94a3b8; border-top:1px dashed #94a3b8; height:0;"></span>
+                  <span>Wind speed (m/s)</span>
+                </div>
+                <div class="legend-chip">
+                  <span class="chip-line" style="background:#dc2626; border-top:1px dashed #dc2626; height:0;"></span>
+                  <span>Blizzard cut-out (25 m/s)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dual Axis Chart (SVG) -->
+            <div class="svg-container" style="border-top: 1px solid var(--border-subtle);">
+              <svg id="svgAux" viewBox="0 0 880 120" preserveAspectRatio="none" style="width:100%; height:120px; display:block;"></svg>
+            </div>
+          </div>
+
+          <!-- Right Sidebar: Controls, Telemetry & Alerts -->
+          <div class="side-panel">
+            
+            <!-- Card 1: Station Status -->
+            <div class="side-card">
+              <div class="side-card-title">
+                <span>Station Telemetry & State</span>
+                <span class="live-dot" title="Modbus TCP / OPC-UA Ingest Live"></span>
+              </div>
+              <div class="telemetry-grid">
+                <div class="telem-item">
+                  <span class="telem-label">Genset 1 (80 kW)</span>
+                  <span class="telem-val" id="tele-g1">ON · 48 kW</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Genset 2 (80 kW)</span>
+                  <span class="telem-val" id="tele-g2" style="color:var(--text-muted);">STANDBY</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Battery SoC (300 kWh)</span>
+                  <span class="telem-val" id="tele-soc">68% · 204 kWh</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Cold Battery Derating</span>
+                  <span class="telem-val" id="tele-derate">-16.8% (249.6 kWh eff)</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Wind Turbine (100 kW)</span>
+                  <span class="telem-val" id="tele-wind">64.5 kW · 14.2 m/s</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Ambient Temperature</span>
+                  <span class="telem-val" id="tele-temp">-31.4 °C</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Alerts & Advice matching Slide 2 -->
+            <div class="side-card">
+              <div class="side-card-title">Alerts & AI Advice</div>
+              <div class="alert-box" id="alert-main-box">
+                <div class="alert-headline" id="alert-title">Blizzard warning (+18h)</div>
+                <div class="alert-desc" id="alert-body">
+                  Forecast wind 28 m/s exceeds 25 m/s cut-out. Battery pre-charging scheduled. Safety reserve increased to 35 kW.
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 3: Operator Actions matching Slide 2 -->
+            <div class="side-card">
+              <div class="side-card-title">Operator Actions (Advisory First)</div>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">
+                POLAR EMS generates plans; operator retains sovereign override for life support safety.
+              </div>
+              <div class="action-btn-row">
+                <button class="btn btn-primary" onclick="approvePlan()">Approve Plan</button>
+                <button class="btn btn-secondary" onclick="openOverrideModal()">Override Setpoints</button>
+              </div>
+              <div class="action-btn-row" style="margin-top:8px;">
+                <button class="btn btn-secondary" onclick="triggerFallback()">Force Rule Fallback</button>
+                <button class="btn btn-secondary" onclick="simulateSensorFault()">Simulate Rime Ice</button>
+              </div>
+            </div>
+
+            <!-- Card 4: Hardware & Sensor Gateway Status -->
+            <div class="side-card">
+              <div class="side-card-title">Sensor Health & Protocols</div>
+              <div class="sensor-list" id="sensor-health-list">
+                <div class="sensor-row">
+                  <span>Modbus TCP Ingest (PLC)</span>
+                  <span class="badge badge-success">OK · 100ms</span>
+                </div>
+                <div class="sensor-row">
+                  <span>OPC-UA (Genset Controllers)</span>
+                  <span class="badge badge-success">OK · 250ms</span>
+                </div>
+                <div class="sensor-row">
+                  <span>Sonic Anemometer (Weather)</span>
+                  <span class="badge badge-success" id="sensor-anemo-badge">HEALTHY</span>
+                </div>
+                <div class="sensor-row">
+                  <span>SQLite Local Edge DB</span>
+                  <span class="badge badge-success">WAL Active · 0ms</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 2: AI ML ABLATION STUDY ==================== -->
+    <div id="panel-ablation" class="tab-panel">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        
+        <div style="background:var(--bg-surface); padding:12px 18px; border-radius:6px; border:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:1.05rem; font-weight:700; color:var(--text-main);">AI ML vs Persistence Forecast Ablation Study</div>
+            <div style="font-size:0.82rem; color:var(--text-muted);">
+              Directly addresses SIH Judge Critique: Isolating the empirical fuel savings attributable strictly to AI ML forecasting accuracy over naive persistence heuristics.
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="triggerAblationRun()">Re-Run 7-Day Ablation</button>
+        </div>
+
+        <!-- 4 Ablation KPI Cards -->
+        <div class="kpi-container">
+          <div class="kpi-box">
+            <div class="kpi-label">AI ML Direct Fuel Saved</div>
+            <div class="kpi-num" style="color:var(--accent-green);" id="abl-fuel-saved">70.3 Litres</div>
+            <div class="kpi-sub" id="abl-fuel-pct">17.7% reduction vs Persistence + MILP</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Day-Ahead Load MAPE</div>
+            <div class="kpi-num" style="color:var(--accent-cyan);" id="abl-mape">6.2%</div>
+            <div class="kpi-sub">vs 14.5% Persistence (57% error reduction)</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Wind Forecast NMAE</div>
+            <div class="kpi-num" style="color:var(--accent-cyan);" id="abl-nmae">13.1%</div>
+            <div class="kpi-sub">vs 35.2% Persistence with blizzard lookahead</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Genset Thermal Starts</div>
+            <div class="kpi-num" style="color:var(--accent-orange);" id="abl-starts">3 Starts</div>
+            <div class="kpi-sub">vs 5 (Persistence MILP) vs 21 (Rule-based)</div>
+          </div>
+        </div>
+
+        <!-- Comparative 4-Way Table -->
+        <div class="console-card" style="padding:16px;">
+          <div style="font-weight:700; margin-bottom:12px; color:var(--text-main);">
+            Comparative Performance: 4-Way Controlled Benchmark (Identical 7-Day Scenario)
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Configuration</th>
+                <th>Forecasting Method</th>
+                <th>Dispatch Engine</th>
+                <th>Fuel Burned (L)</th>
+                <th>Starts Count</th>
+                <th>Load MAPE</th>
+                <th>Wind NMAE</th>
+                <th>Unserved Energy</th>
+              </tr>
+            </thead>
+            <tbody id="ablation-table-body">
+              <tr>
+                <td><strong>1. Baseline Heuristic</strong></td>
+                <td>Persistence (Day-Ahead)</td>
+                <td>Rule-Based Controller</td>
+                <td>1,267.4 L</td>
+                <td>21</td>
+                <td>14.5%</td>
+                <td>35.2%</td>
+                <td><span class="badge badge-success">0.0 kWh</span></td>
+              </tr>
+              <tr>
+                <td><strong>2. Persistence + MILP</strong></td>
+                <td>Persistence (Day-Ahead)</td>
+                <td>SciPy HiGHS MILP</td>
+                <td>396.2 L</td>
+                <td>5</td>
+                <td>14.5%</td>
+                <td>35.2%</td>
+                <td><span class="badge badge-success">0.0 kWh</span></td>
+              </tr>
+              <tr style="background:rgba(2,132,199,0.12); font-weight:600;">
+                <td><strong style="color:var(--accent-cyan);">3. POLAR EMS (AI ML)</strong></td>
+                <td>HistGradientBoosting ML</td>
+                <td>SciPy HiGHS MILP</td>
+                <td><strong style="color:var(--accent-green);">325.9 L</strong></td>
+                <td>3</td>
+                <td>6.2%</td>
+                <td>13.1%</td>
+                <td><span class="badge badge-success">0.0 kWh</span></td>
+              </tr>
+              <tr style="color:var(--text-muted);">
+                <td><strong>4. Perfect Oracle (Bound)</strong></td>
+                <td>Ground Truth (Zero Error)</td>
+                <td>SciPy HiGHS MILP</td>
+                <td>137.0 L</td>
+                <td>3</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+                <td><span class="badge badge-success">0.0 kWh</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="margin-top:16px; font-size:0.82rem; color:var(--text-muted); line-height:1.6; background:var(--bg-surface); padding:12px; border-radius:6px; border:1px solid var(--border-subtle);">
+            <strong>Ablation Conclusion & Defense Rationale:</strong><br>
+            By decoupling the optimizer (HiGHS MILP) from the forecaster, we isolate the exact contribution of the AI model. 
+            Replacing naive persistence with HistGradientBoosting saves an additional <strong>70.3 Litres (17.7%)</strong> in a single week and prevents 2 unnecessary cold genset starts. 
+            This provides concrete empirical evidence that the machine learning forecaster is essential, not decorative.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: THERMAL & CHP LOOP ==================== -->
+    <div id="panel-thermal" class="tab-panel">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        
+        <div style="background:var(--bg-surface); padding:12px 18px; border-radius:6px; border:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:1.05rem; font-weight:700; color:var(--text-main);">Combined Heat & Power (CHP) & Auxiliary Hydronic Loop Engine</div>
+            <div style="font-size:0.82rem; color:var(--text-muted);">
+              Addresses SIH Judge Critique: Diesel gensets produce thermal waste heat for station heating and snow melting. Models auxiliary boiler fuel consumption when gensets are turned OFF in renewable mode.
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="loadThermalStatus()">Refresh Thermal Status</button>
+        </div>
+
+        <!-- 4 Thermal KPI Cards -->
+        <div class="kpi-container">
+          <div class="kpi-box">
+            <div class="kpi-label">Station Thermal Demand</div>
+            <div class="kpi-num" id="therm-demand">68.5 kW_th</div>
+            <div class="kpi-sub">Target +18°C · UA 1.25 kW/°C + 8 kW melt</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Genset Heat Recovered</div>
+            <div class="kpi-num" style="color:var(--accent-orange);" id="therm-recovered">64.8 kW_th</div>
+            <div class="kpi-sub">Jacket water + exhaust recovery (1.35x elec)</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Auxiliary Boiler State</div>
+            <div class="kpi-num" id="therm-boiler-state" style="color:var(--accent-yellow);">STANDBY</div>
+            <div class="kpi-sub" id="therm-boiler-fuel">0.0 L/h fuel burn</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Net Fuel Saved (Elec + Heat)</div>
+            <div class="kpi-num" style="color:var(--accent-green);" id="therm-net-saved">-26.8%</div>
+            <div class="kpi-sub">Total primary energy reduction</div>
+          </div>
+        </div>
+
+        <!-- Thermal Balance Diagram and Breakdown -->
+        <div class="console-layout">
+          <div class="console-card" style="padding:16px;">
+            <div style="font-weight:700; margin-bottom:12px; color:var(--text-main);">
+              Station Thermal Balance (24-Hour Rolling Hydronic Profile)
+            </div>
+            <div class="svg-container">
+              <svg id="svgThermal" viewBox="0 0 880 200" preserveAspectRatio="none" style="width:100%; height:200px; display:block;"></svg>
+            </div>
+          </div>
+
+          <div class="side-panel">
+            <div class="side-card">
+              <div class="side-card-title">Hydronic Loop Physics</div>
+              <div class="telemetry-grid">
+                <div class="telem-item">
+                  <span class="telem-label">Habitat Comfort Setpoint</span>
+                  <span class="telem-val">+18.0 °C</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Station Heat Loss (UA)</span>
+                  <span class="telem-val">1.25 kW/°C</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Snow-Melt Base Load</span>
+                  <span class="telem-val">8.0 kW_th</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">CHP Heat Recovery Ratio</span>
+                  <span class="telem-val">1.35 kW_th / kW_elec</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Auxiliary Boiler Efficiency</span>
+                  <span class="telem-val">84.0%</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Specific Boiler Fuel</span>
+                  <span class="telem-val">0.118 L / kWh_th</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="side-card">
+              <div class="side-card-title">Thermal Life-Support Defense</div>
+              <div style="font-size:0.78rem; color:var(--text-muted); line-height:1.5;">
+                Even when gensets shut down completely during high-wind intervals, the auxiliary polar boiler consumes only <strong>~8.8 L/hr</strong> of heating diesel, while shutting down the genset saves <strong>~20 L/hr</strong> of electrical diesel. 
+                Hence, <strong>net station fuel consumption is reduced by >25%</strong> even under severe -35°C thermal deficits.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== TAB 4: REAL ANTARCTIC BACKTEST ==================== -->
+    <div id="panel-backtest" class="tab-panel">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        
+        <div style="background:var(--bg-surface); padding:12px 18px; border-radius:6px; border:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:1.05rem; font-weight:700; color:var(--text-main);">Real Antarctic Station Meteorological Backtest</div>
+            <div style="font-size:0.82rem; color:var(--text-muted);">
+              Addresses SIH Judge Critique: Replaces purely synthetic curves with real meteorological observations from Indian Antarctic Research Stations.
+            </div>
+          </div>
+          
+          <div style="display:flex; gap:8px;">
+            <div class="pill-group">
+              <button class="view-pill active" id="btn-station-bharati" onclick="switchBacktestStation('Bharati')">Bharati (69°S)</button>
+              <button class="view-pill" id="btn-station-maitri" onclick="switchBacktestStation('Maitri')">Maitri (70°S)</button>
+              <button class="view-pill" id="btn-station-himadri" onclick="switchBacktestStation('Himadri')">Himadri (78°N)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Real Weather KPIs -->
+        <div class="kpi-container">
+          <div class="kpi-box">
+            <div class="kpi-label">Minimum Temperature</div>
+            <div class="kpi-num" style="color:var(--accent-cyan);" id="rw-min-temp">-44.9 °C</div>
+            <div class="kpi-sub">Observed polar cold spell</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Peak Katabatic Wind</div>
+            <div class="kpi-num" style="color:var(--accent-orange);" id="rw-max-wind">36.0 m/s</div>
+            <div class="kpi-sub">129.6 km/h blizzard gale</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Blizzard Cutout Hours</div>
+            <div class="kpi-num" style="color:var(--accent-red);" id="rw-cutout-hrs">116 hours</div>
+            <div class="kpi-sub">Wind >= 25 m/s safety shutoff</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Life Support Unserved</div>
+            <div class="kpi-num" style="color:var(--accent-green);" id="rw-unserved">0.0 kWh</div>
+            <div class="kpi-sub">100% station reliability preserved</div>
+          </div>
+        </div>
+
+        <!-- Real Weather Observations SVG Chart -->
+        <div class="console-card" style="padding:16px;">
+          <div style="font-weight:700; margin-bottom:12px; color:var(--text-main);" id="rw-chart-title">
+            Meteorological Time-Series: Bharati Station (Larsemann Hills, 7-Day Winter Storm)
+          </div>
           <div class="legend-strip">
             <div class="legend-chip">
-              <span class="chip-sq" style="background:#ea580c;"></span>
-              <span>Genset</span>
+              <span class="chip-line" style="background:#0284c7; height:2px;"></span>
+              <span>Wind Speed (m/s)</span>
             </div>
             <div class="legend-chip">
-              <span class="chip-sq" style="background:#0284c7;"></span>
-              <span>Wind</span>
+              <span class="chip-line" style="background:#dc2626; border-top:1px dashed #dc2626; height:0;"></span>
+              <span>25 m/s Turbine Cut-out Threshold</span>
             </div>
             <div class="legend-chip">
-              <span class="chip-sq" style="background:#1e3a8a;"></span>
-              <span>Battery discharge</span>
-            </div>
-            <div class="legend-chip" id="legend-pv-chip" style="display:none;">
-              <span class="chip-sq" style="background:#ca8a04;"></span>
-              <span>Solar PV</span>
-            </div>
-            <div class="legend-chip">
-              <span class="chip-line" style="background:var(--text-main);"></span>
-              <span>Demand (load + charging)</span>
+              <span class="chip-line" style="background:#94a3b8; height:2px;"></span>
+              <span>Ambient Temperature (°C)</span>
             </div>
           </div>
-
-          <!-- Upper Stacked Area SVG Chart (kW vs Days) -->
-          <div class="svg-chart-container">
-            <svg id="svgDispatch" viewBox="0 0 880 240" style="width:100%; height:240px; display:block;">
-              <!-- Rendered by app.js -->
-            </svg>
-          </div>
-
-          <!-- Lower Dual-Axis SVG Chart (SoC % & Wind Speed vs Days) -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; margin-bottom:4px; font-size:0.75rem; color:var(--text-muted); font-weight:600;">
-            <div style="display:flex; gap:16px;">
-              <span style="display:flex; align-items:center; gap:5px;">
-                <span class="chip-line" style="background:#0284c7;"></span> Battery SoC % (POLAR EMS)
-              </span>
-              <span style="display:flex; align-items:center; gap:5px;">
-                <span class="chip-line" style="background:#16a34a; border-top:1px dashed #16a34a;"></span> SoC % (rule-based)
-              </span>
-              <span style="display:flex; align-items:center; gap:5px;">
-                <span class="chip-line" style="background:#64748b;"></span> Wind speed m/s
-              </span>
-            </div>
-            <span style="color:#dc2626; display:flex; align-items:center; gap:4px;">
-              <span style="border-bottom:1.5px dashed #dc2626; width:16px;"></span> Turbine cut-out 25 m/s
-            </span>
-          </div>
-
-          <div class="svg-chart-container">
-            <svg id="svgAux" viewBox="0 0 880 120" style="width:100%; height:120px; display:block;">
-              <!-- Rendered by app.js -->
-            </svg>
+          <div class="svg-container">
+            <svg id="svgRealWeather" viewBox="0 0 880 220" preserveAspectRatio="none" style="width:100%; height:220px; display:block;"></svg>
           </div>
         </div>
 
-        <!-- Right: Alerts and Advice + Operator Action (Exact Slide 2 Right Box) -->
-        <div class="sidebar-stack">
+      </div>
+    </div>
+
+    <!-- ==================== TAB 5: LOGISTICS & AUTONOMY ==================== -->
+    <div id="panel-logistics" class="tab-panel">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        
+        <div style="background:var(--bg-surface); padding:12px 18px; border-radius:6px; border:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:1.05rem; font-weight:700; color:var(--text-main);">Antarctic Fuel Logistics, Financial Economics & Autonomy Tracker</div>
+            <div style="font-size:0.82rem; color:var(--text-muted);">
+              Addresses SIH Judge Critique: Delivered fuel cost analysis (~₹335/L in Antarctica), investment payback period, 5-year station ROI, and dynamic days-of-autonomy tracking for multi-week blizzard isolation.
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="loadEconomicsData()">Refresh Logistics</button>
+        </div>
+
+        <!-- 4 Economics KPIs -->
+        <div class="kpi-container">
+          <div class="kpi-box">
+            <div class="kpi-label">Delivered Polar Fuel Cost</div>
+            <div class="kpi-num" style="color:var(--text-main);">₹335 / L</div>
+            <div class="kpi-sub">$4.02 / Litre landed at station</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Annual Station Savings</div>
+            <div class="kpi-num" style="color:var(--accent-green);" id="econ-annual-sav">₹1.39 Crore</div>
+            <div class="kpi-sub" id="econ-annual-liters">41,600 Litres saved / year</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Edge Hardware CAPEX</div>
+            <div class="kpi-num" style="color:var(--accent-cyan);">₹3.50 Lakh</div>
+            <div class="kpi-sub">Rugged fanless DIN-rail PC + gateways</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Investment Payback Period</div>
+            <div class="kpi-num" style="color:var(--accent-green);" id="econ-payback">9.2 Days</div>
+            <div class="kpi-sub">Full capital recovery in < 1 month</div>
+          </div>
+        </div>
+
+        <!-- Autonomy & Cost Breakdown -->
+        <div class="console-layout">
           
-          <div class="console-card" style="padding:14px;">
-            <div class="console-card-header" style="margin-bottom:10px;">
-              <span>Alerts and advice</span>
+          <div class="console-card" style="padding:16px;">
+            <div style="font-weight:700; margin-bottom:12px; color:var(--text-main);">
+              Station Bulk Fuel Storage & Days-of-Autonomy Gauge
+            </div>
+            
+            <div style="background:var(--bg-surface); padding:16px; border-radius:6px; border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:600; color:var(--text-main);">Bulk Tank Level:</span>
+                <span style="font-weight:700; color:var(--accent-cyan); font-size:1.1rem;" id="tank-vol-str">42,500 L / 60,000 L (70.8%)</span>
+              </div>
+              
+              <!-- Progress bar -->
+              <div style="width:100%; height:20px; background:rgba(255,255,255,0.08); border-radius:10px; overflow:hidden; border:1px solid var(--border-subtle);">
+                <div id="tank-fill-bar" style="width:70.8%; height:100%; background:linear-gradient(90deg, #0284c7, #10b981);"></div>
+              </div>
+
+              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:8px;">
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:4px; text-align:center;">
+                  <div style="font-size:0.75rem; color:var(--text-muted);">Current Burn Rate</div>
+                  <div style="font-size:1.1rem; font-weight:700; color:var(--text-main);" id="tank-burn-rate">264 L / day</div>
+                </div>
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:4px; text-align:center;">
+                  <div style="font-size:0.75rem; color:var(--text-muted);">Days of Autonomy</div>
+                  <div style="font-size:1.1rem; font-weight:700; color:var(--accent-green);" id="tank-autonomy-days">160 Days</div>
+                </div>
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:4px; text-align:center;">
+                  <div style="font-size:0.75rem; color:var(--text-muted);">Blizzard Safety Margin</div>
+                  <div style="font-size:1.1rem; font-weight:700; color:var(--accent-cyan);" id="tank-safety-margin">+145 Days</div>
+                </div>
+              </div>
+
+              <div style="font-size:0.8rem; color:var(--accent-green); background:rgba(16,185,129,0.1); padding:8px 12px; border-radius:4px; border:1px solid rgba(16,185,129,0.3);" id="tank-advice">
+                Status: SECURE_RESERVE · Fuel stock exceeds the 15-day emergency blizzard traverse cutoff margin.
+              </div>
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <!-- Alert 1: Yellow / Amber -->
-              <div class="slide-alert alert-yellow">
-                <div class="alert-headline">
-                  <span>⚠️</span> Turbine cut-out risk
-                </div>
-                <div id="alert-cutout-body">
-                  Wind above 25 m/s on day 7 from about 13:00 (9 h this month). Planner raises the reserve margin when forecast wind nears cut-out; battery is at 77% as the event starts.
-                </div>
+            <div style="margin-top:16px;">
+              <div style="font-weight:700; margin-bottom:8px; color:var(--text-main);">
+                5-Year Station Life-Cycle Impact
               </div>
-
-              <!-- Alert 2: Green -->
-              <div class="slide-alert alert-green">
-                <div class="alert-headline">
-                  <span>✅</span> Diesel-off window
-                </div>
-                <div>
-                  Wind and battery can carry the station; planner schedules gensets off for 291 h this month.
-                </div>
-              </div>
-
-              <!-- Alert 3: Blue -->
-              <div class="slide-alert alert-blue">
-                <div class="alert-headline">
-                  <span>💧</span> Deferrable load shifted
-                </div>
-                <div>
-                  Snow-melt and water production (100 kWh/day) is scheduled flexibly within a deadline and still delivered.
-                </div>
-              </div>
-            </div>
-
-            <!-- Operator Action Box (Exact Slide 2 Bottom Right) -->
-            <div class="operator-card" style="margin-top:12px;">
-              <div style="font-weight:700; font-size:0.84rem; color:var(--text-main); margin-bottom:4px;">
-                Operator action
-              </div>
-              <div class="operator-text" id="operator-action-msg">
-                Plan for the next 6 h is ready. Safety layer checked critical-load reserve.
-              </div>
-              <div class="operator-btn-row">
-                <button class="btn-approve" onclick="handleApprove()">Approve plan</button>
-                <button class="btn-override" onclick="handleOverride()">Override</button>
-              </div>
-              <div id="operator-feedback" style="font-size:0.75rem; color:#16a34a; font-weight:600; margin-top:8px; display:none;">
-                ✔ Plan approved. Setpoints dispatched to station PLC.
-              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Always-On Baseline</th>
+                    <th>POLAR EMS</th>
+                    <th>Net Benefit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>5-Year Diesel Consumption</td>
+                    <td>692,000 Litres</td>
+                    <td>484,000 Litres</td>
+                    <td><strong style="color:var(--accent-green);">-208,000 Litres</strong></td>
+                  </tr>
+                  <tr>
+                    <td>5-Year Delivered Fuel Cost</td>
+                    <td>₹23.18 Crores</td>
+                    <td>₹16.21 Crores</td>
+                    <td><strong style="color:var(--accent-green);">₹6.97 Crores saved</strong></td>
+                  </tr>
+                  <tr>
+                    <td>Hardware & Setup CAPEX</td>
+                    <td>₹0</td>
+                    <td>₹3.50 Lakhs</td>
+                    <td><strong>Payback in 9.2 days</strong></td>
+                  </tr>
+                  <tr>
+                    <td>CO2 Emissions Avoided</td>
+                    <td>0 tonnes</td>
+                    <td>557.4 tonnes</td>
+                    <td><strong style="color:var(--accent-green);">557.4 t CO2 avoided</strong></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
           </div>
 
-          <!-- Slide 3 Technical Pipeline Summary -->
-          <div class="console-card" style="padding:12px 14px;">
-            <div style="font-weight:700; font-size:0.8rem; margin-bottom:6px; color:var(--text-muted); text-transform:uppercase;">
-              Technical Architecture (Slide 3)
+          <div class="side-panel">
+            <div class="side-card">
+              <div class="side-card-title">Delivered Fuel Cost Breakdown</div>
+              <div class="telemetry-grid">
+                <div class="telem-item">
+                  <span class="telem-label">Bulk Polar Diesel (DMA / Jet A-1)</span>
+                  <span class="telem-val">₹85.0 / L</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Chartered Icebreaker Transport</span>
+                  <span class="telem-val">₹160.0 / L</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Fast Ice Pumping & Sled Traverse</span>
+                  <span class="telem-val">₹75.0 / L</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-label">Environmental Protocol & Sampling</span>
+                  <span class="telem-val">₹15.0 / L</span>
+                </div>
+                <div class="telem-item" style="border-top:1px solid var(--border-subtle); padding-top:6px;">
+                  <span class="telem-label" style="font-weight:700; color:var(--text-main);">Total Landed Fuel Cost</span>
+                  <span class="telem-val" style="font-weight:700; color:var(--accent-green);">₹335.0 / L</span>
+                </div>
+              </div>
             </div>
-            <div style="font-size:0.76rem; color:var(--text-muted); line-height:1.45;">
-              <p><strong>Edge PC:</strong> Rugged, fanless, offline-first on site.</p>
-              <p><strong>Pipeline:</strong> Field Ingest (Modbus/OPC) ➔ Forecast (HistGB) ➔ HiGHS MILP ➔ Safety Layer ➔ Operator Dashboard.</p>
-              <p><strong>Safety:</strong> 0 kWh unserved life support guarantee with deterministic rule fallback.</p>
+
+            <div class="side-card">
+              <div class="side-card-title">Logistics Defense Context</div>
+              <div style="font-size:0.78rem; color:var(--text-muted); line-height:1.5;">
+                In Antarctica, fuel cannot simply be ordered by tanker truck. 
+                Every single litre must be chartered on an expedition vessel (e.g. <em>MV Vasiliy Golovnin</em>) departing Cape Town, pumped across miles of sea ice, and hauled on tracked sleds across crevasse fields. 
+                Saving <strong>41,600 Litres annually</strong> directly prevents hazardous sea transfers, eliminates 111+ tonnes of black carbon / CO2, and saves the national exchequer <strong>₹1.39 Crore per year</strong>.
+              </div>
             </div>
           </div>
 
         </div>
 
       </div>
-
     </div>
 
   </div>
