@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POLAR EMS · Operator Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="dashboard-wrapper">
+    
+    <!-- Top Sub-Nav with Context & Controls -->
+    <div class="control-bar">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-weight:700; color:var(--text-main);">ByteForce @SIH26061</span>
+        <span style="color:var(--text-faint);">|</span>
+        <span style="color:var(--text-muted);">AI-Driven Smart Energy Management System for Polar Research Stations</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="pill-group">
+          <button class="view-pill active" id="btn-polarnight-week" onclick="switchWeek('polar_night')">Polar-Night Week (Slide 2)</button>
+          <button class="view-pill" id="btn-summer-week" onclick="switchWeek('summer')">Summer Week</button>
+          <button class="view-pill" id="btn-24h-rolling" onclick="switchWeek('rolling24')">24h Rolling Live</button>
+        </div>
+        <button class="view-pill" onclick="toggleTheme()" id="theme-toggle-btn">🌙 Dark Mode</button>
+      </div>
+    </div>
+
+    <!-- Operator Dashboard Outer Container (Matching Slide 2 Box 4) -->
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      
+      <!-- Top Scada Header Strip -->
+      <div class="scada-header">
+        <div class="scada-title">
+          <span>POLAR EMS · Operator dashboard</span>
+        </div>
+        <div class="scada-subtitle" id="scada-subtitle-text">
+          Synthetic station (Maitri-like, 70.9°S) · polar-night month · prototype view of simulation output
+        </div>
+      </div>
+
+      <!-- 4 Metric KPI Cards across the top (Exact Slide 2 numbers) -->
+      <div class="kpi-container">
+        <div class="kpi-box">
+          <div class="kpi-label">Diesel vs always-on baseline</div>
+          <div class="kpi-num" id="kpi-diesel-val">-23.7%</div>
+          <div class="kpi-sub" id="kpi-diesel-sub">11,890 L -> 9,074 L in 30 days</div>
+        </div>
+
+        <div class="kpi-box">
+          <div class="kpi-label">Gensets fully off</div>
+          <div class="kpi-num" id="kpi-off-val">291 h</div>
+          <div class="kpi-sub" id="kpi-off-sub">of 696 h, baseline 0 h</div>
+        </div>
+
+        <div class="kpi-box">
+          <div class="kpi-label">Renewable share of demand</div>
+          <div class="kpi-num" id="kpi-ren-val">33%</div>
+          <div class="kpi-sub" id="kpi-ren-sub">baseline 23%</div>
+        </div>
+
+        <div class="kpi-box">
+          <div class="kpi-label">Unserved energy</div>
+          <div class="kpi-num" id="kpi-unserved-val">0 kWh</div>
+          <div class="kpi-sub">critical loads protected all month</div>
+        </div>
+      </div>
+
+      <!-- Main Console Layout: Left Charts + Right Sidebar -->
+      <div class="console-layout">
+        
+        <!-- Left: Dispatch Plan Charts -->
+        <div class="console-card">
+          <div class="console-card-header">
+            <span id="chart-main-title">Dispatch plan executed: POLAR EMS (polar-night week, simulated)</span>
+            <span style="font-size:0.75rem; color:var(--text-faint);" id="solver-badge">HiGHS MILP · 0.9s solve</span>
+          </div>
+
+          <!-- Legend Strip matching Slide 2 -->
+          <div class="legend-strip">
+            <div class="legend-chip">
+              <span class="chip-sq" style="background:#ea580c;"></span>
+              <span>Genset</span>
+            </div>
+            <div class="legend-chip">
+              <span class="chip-sq" style="background:#0284c7;"></span>
+              <span>Wind</span>
+            </div>
+            <div class="legend-chip">
+              <span class="chip-sq" style="background:#1e3a8a;"></span>
+              <span>Battery discharge</span>
+            </div>
+            <div class="legend-chip" id="legend-pv-chip" style="display:none;">
+              <span class="chip-sq" style="background:#ca8a04;"></span>
+              <span>Solar PV</span>
+            </div>
+            <div class="legend-chip">
+              <span class="chip-line" style="background:var(--text-main);"></span>
+              <span>Demand (load + charging)</span>
+            </div>
+          </div>
+
+          <!-- Upper Stacked Area SVG Chart (kW vs Days) -->
+          <div class="svg-chart-container">
+            <svg id="svgDispatch" viewBox="0 0 880 240" style="width:100%; height:240px; display:block;">
+              <!-- Rendered by app.js -->
+            </svg>
+          </div>
+
+          <!-- Lower Dual-Axis SVG Chart (SoC % & Wind Speed vs Days) -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; margin-bottom:4px; font-size:0.75rem; color:var(--text-muted); font-weight:600;">
+            <div style="display:flex; gap:16px;">
+              <span style="display:flex; align-items:center; gap:5px;">
+                <span class="chip-line" style="background:#0284c7;"></span> Battery SoC % (POLAR EMS)
+              </span>
+              <span style="display:flex; align-items:center; gap:5px;">
+                <span class="chip-line" style="background:#16a34a; border-top:1px dashed #16a34a;"></span> SoC % (rule-based)
+              </span>
+              <span style="display:flex; align-items:center; gap:5px;">
+                <span class="chip-line" style="background:#64748b;"></span> Wind speed m/s
+              </span>
+            </div>
+            <span style="color:#dc2626; display:flex; align-items:center; gap:4px;">
+              <span style="border-bottom:1.5px dashed #dc2626; width:16px;"></span> Turbine cut-out 25 m/s
+            </span>
+          </div>
+
+          <div class="svg-chart-container">
+            <svg id="svgAux" viewBox="0 0 880 120" style="width:100%; height:120px; display:block;">
+              <!-- Rendered by app.js -->
+            </svg>
+          </div>
+        </div>
+
+        <!-- Right: Alerts and Advice + Operator Action (Exact Slide 2 Right Box) -->
+        <div class="sidebar-stack">
+          
+          <div class="console-card" style="padding:14px;">
+            <div class="console-card-header" style="margin-bottom:10px;">
+              <span>Alerts and advice</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <!-- Alert 1: Yellow / Amber -->
+              <div class="slide-alert alert-yellow">
+                <div class="alert-headline">
+                  <span>⚠️</span> Turbine cut-out risk
+                </div>
+                <div id="alert-cutout-body">
+                  Wind above 25 m/s on day 7 from about 13:00 (9 h this month). Planner raises the reserve margin when forecast wind nears cut-out; battery is at 77% as the event starts.
+                </div>
+              </div>
+
+              <!-- Alert 2: Green -->
+              <div class="slide-alert alert-green">
+                <div class="alert-headline">
+                  <span>✅</span> Diesel-off window
+                </div>
+                <div>
+                  Wind and battery can carry the station; planner schedules gensets off for 291 h this month.
+                </div>
+              </div>
+
+              <!-- Alert 3: Blue -->
+              <div class="slide-alert alert-blue">
+                <div class="alert-headline">
+                  <span>💧</span> Deferrable load shifted
+                </div>
+                <div>
+                  Snow-melt and water production (100 kWh/day) is scheduled flexibly within a deadline and still delivered.
+                </div>
+              </div>
+            </div>
+
+            <!-- Operator Action Box (Exact Slide 2 Bottom Right) -->
+            <div class="operator-card" style="margin-top:12px;">
+              <div style="font-weight:700; font-size:0.84rem; color:var(--text-main); margin-bottom:4px;">
+                Operator action
+              </div>
+              <div class="operator-text" id="operator-action-msg">
+                Plan for the next 6 h is ready. Safety layer checked critical-load reserve.
+              </div>
+              <div class="operator-btn-row">
+                <button class="btn-approve" onclick="handleApprove()">Approve plan</button>
+                <button class="btn-override" onclick="handleOverride()">Override</button>
+              </div>
+              <div id="operator-feedback" style="font-size:0.75rem; color:#16a34a; font-weight:600; margin-top:8px; display:none;">
+                ✔ Plan approved. Setpoints dispatched to station PLC.
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Slide 3 Technical Pipeline Summary -->
+          <div class="console-card" style="padding:12px 14px;">
+            <div style="font-weight:700; font-size:0.8rem; margin-bottom:6px; color:var(--text-muted); text-transform:uppercase;">
+              Technical Architecture (Slide 3)
+            </div>
+            <div style="font-size:0.76rem; color:var(--text-muted); line-height:1.45;">
+              <p><strong>Edge PC:</strong> Rugged, fanless, offline-first on site.</p>
+              <p><strong>Pipeline:</strong> Field Ingest (Modbus/OPC) ➔ Forecast (HistGB) ➔ HiGHS MILP ➔ Safety Layer ➔ Operator Dashboard.</p>
+              <p><strong>Safety:</strong> 0 kWh unserved life support guarantee with deterministic rule fallback.</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
