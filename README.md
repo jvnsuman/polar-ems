@@ -1,147 +1,255 @@
-# POLAR EMS: AI-Driven Smart Energy Management System for Polar Research Stations
+# POLAR EMS
+
+**AI-driven smart energy management for polar research stations** (SIH 2026, PS SIH26061, Team ByteForce, ID 118717)
 
 [![SIH 2026](https://img.shields.io/badge/SIH-2026-blue.svg)](https://sih.gov.in)
-[![Problem Statement](https://img.shields.io/badge/PS_ID-SIH26061-orange.svg)](#)
+[![PS](https://img.shields.io/badge/PS_ID-SIH26061-orange.svg)](#)
 [![Theme](https://img.shields.io/badge/Theme-Clean_%26_Green_Technology-green.svg)](#)
-[![Team](https://img.shields.io/badge/Team-ByteForce_(118717)-purple.svg)](#)
-[![License](https://img.shields.io/badge/License-MIT-teal.svg)](#)
+[![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](#)
+[![License](https://img.shields.io/badge/License-MIT-teal.svg)](LICENSE)
 
-POLAR EMS is an **Offline-First, Safety-Guaranteed, Explainable Advisory Microgrid Energy Management System** built for Antarctic and Arctic research stations (such as India's **Bharati**, **Maitri**, and Arctic station **Himadri** under NCPOR / MoES).
+POLAR EMS is an **advisory-first, offline-first** energy management prototype for a polar station microgrid: diesel gensets, solar PV, wind, a battery, and one deferrable load (snow-melt / water-maker). It forecasts load and weather, plans 24 h of generator, battery and deferrable-load setpoints with a MILP optimizer, and falls back to a rule-based controller if the optimizer fails. The operator approves or overrides each plan.
 
----
-
-## ❄️ Key Achievements & Measured Impact (Slide 5 Replication)
-
-| Metric | Always-on Baseline | Tuned Rule-Based Controller | POLAR EMS (Optimized) |
-| :--- | :--- | :--- | :--- |
-| **Combined 60-Day Diesel Fuel** | 22,822 L | 16,633 L (-27.1%) | **16,041 L (-29.7%)** |
-| **Summer 30-Day Diesel** | 10,932 L | 7,338 L (-32.9%) | **6,967 L (-36.3%)** |
-| **Polar-Night 30-Day Diesel** | 11,890 L | 9,295 L (-21.8%) | **9,074 L (-23.7%)** |
-| **Unserved Critical Energy** | 0.0 kWh | 0.0 kWh | **0.0 kWh (Safety Guarantee)** |
-| **Genset Off-Hours (Polar Night)** | 0 h | ~260 h | **291 h / month** |
-| **CO2 Avoided** | 0.0 t | 16.6 t | **18.2 tonnes** |
-| **MILP Average Solve Time** | N/A | < 1 ms | **< 0.9 seconds (HiGHS Backend)** |
+> **Status: research prototype, simulation only.** All data is synthetic. No real station logs, no live hardware interface, no control output. See [Known limitations](#known-limitations).
 
 ---
 
-## 🛠️ Complete Technical Stack
+## Contents
 
-| Domain | Technology / Library | Purpose |
-| :--- | :--- | :--- |
-| **Runtime** | Python 3.12 (Venv) | Isolated, reproducible virtual environment |
-| **MILP Optimizer** | `scipy.optimize.milp` with HiGHS Solver | Solves 24-hour unit commitment & economic dispatch in < 0.9s |
-| **Machine Learning** | `scikit-learn` (`HistGradientBoostingRegressor`) | Polar load forecasting using hour, temperature, lag-24h, and rolling statistics |
-| **Physical Modeling** | NumPy & Python Math | Bifacial solar geometry, wind turbine power curves with 25 m/s blizzard cut-out, cold battery derating |
-| **Edge Backend** | FastAPI, Uvicorn, AsyncIO, WebSockets | Asynchronous edge service running locally on rugged fanless industrial PC |
-| **Edge Persistence** | SQLite 3 with Write-Ahead Logging (WAL) | Crash-resilient local time-series and permanent operator audit log |
-| **Telemetry Ingestion** | Modbus TCP, OPC-UA, MQTT Simulator | Gap-filling, range validation, and polar anemometer rime-icing detection |
-| **Operator UI** | HTML5, CSS3, JavaScript, Chart.js | Real-time dark Antarctic dashboard replicating ByteForce's SIH Slide 2 & 3 |
-
----
-
-## 📐 Mathematical Formulation
-
-### 1. Decision Variables ($t \in \{0, \dots, T-1\}$)
-- $u_i(t) \in \{0, 1\}$: Binary status of genset $i \in \{1, 2\}$ (1 = ON, 0 = OFF)
-- $v_i(t) \in \{0, 1\}$: Startup detection ($v_i(t) \ge u_i(t) - u_i(t-1)$)
-- $P_{g,i}(t) \in [0, 80]$: Active power output of genset $i$ (kW)
-- $P_{chg}(t), P_{dis}(t) \in [0, 100]$: Battery charge/discharge power (kW)
-- $SoC(t) \in [0.20, 0.95]$: Battery state of charge
-- $P_{def}(t) \in [0, 25]$: Flexible load allocated to snow-melter/water-maker (kW)
-- $P_{curt}(t), P_{uns}(t) \ge 0$: Curtailment and unserved slack variables
-
-### 2. Objective Function
-$$\min \sum_{t=0}^{T-1} \left[ \sum_{i=1}^2 \left( F_{0,i} u_i(t) + k_i P_{g,i}(t) + C_{start} v_i(t) \right) + C_{deg} (P_{chg}(t) + P_{dis}(t)) + 10000 P_{uns}(t) + 0.02 P_{curt}(t) \right]$$
-
-### 3. Key Polar Constraints
-- **Power Balance:**
-  $$\sum_{i=1}^2 P_{g,i}(t) + P_{wind}(t) + P_{pv}(t) + P_{dis}(t) - P_{chg}(t) - P_{def}(t) - P_{curt}(t) + P_{uns}(t) = P_{crit}(t)$$
-- **Minimum Genset Loading:** $P_{g,i}(t) \ge 24 \cdot u_i(t)$ (30% load prevents wet stacking)
-- **Minimum Run-Time:** $\sum_{\tau=t}^{\min(t+2, T-1)} u_i(\tau) \ge 3 \cdot v_i(t)$ (3 hours minimum run to avoid thermal shock)
-- **Cold Battery Derating:** $C_{eff}(T) = C_{nom} \cdot \max(0.60, 1.0 - 0.008 \cdot \max(0, 15 - T_{ambient}))$
-- **Dynamic Blizzard Reserve:** $R_{req}(t) = 0.12 P_{crit}(t) + 0.25 P_{pv}(t) + \alpha_{wind}(v_{wind}) P_{wind}(t)$, where $\alpha_{wind} \in [0.30, 0.70]$
-- **Blizzard Safety Cut-Out:** $P_{wind}(v) = 0\text{ kW}$ when $v_{wind} \ge 25\text{ m/s}$
+1. [What works today](#what-works-today)
+2. [Results](#results)
+3. [Architecture](#architecture)
+4. [Quick start](#quick-start)
+5. [API](#api)
+6. [Project structure](#project-structure)
+7. [Optimizer formulation](#optimizer-formulation)
+8. [What-if scenarios](#what-if-scenarios)
+9. [Known limitations](#known-limitations)
+10. [Roadmap](#roadmap)
+11. [References](#references)
 
 ---
 
-## 🚀 Quick Start Guide
+## What works today
 
-### 1. Prerequisites
-- Python 3.12 (already installed and configured in `venv/`)
-- Modern web browser (Chrome, Edge, Firefox)
-
-### 2. Activate Virtual Environment
-In PowerShell:
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-*(Or invoke via `& 'D:\Polar EMS\venv\Scripts\python.exe'` directly)*
-
-### 3. Run the 60-Day Full Benchmark Validation
-Executes both 30-day Summer and 30-day Polar-Night simulations (237 MILP solves):
-```powershell
-& 'D:\Polar EMS\venv\Scripts\python.exe' -u run_simulation.py
-```
-
-### 4. Launch the Edge Service & Operator Dashboard
-Starts the FastAPI edge server and serves the real-time UI:
-```powershell
-& 'D:\Polar EMS\venv\Scripts\python.exe' -u start_edge_server.py
-```
-
-Open your browser to:
-- **Operator Dashboard:** [http://127.0.0.1:8000](http://127.0.0.1:8000)
-- **Interactive OpenAPI Documentation:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+| Area | Status | Where |
+| :-- | :-- | :-- |
+| Microgrid physics (genset fuel curve, cold-derated battery, wind power curve with 25 m/s cut-out, PV with snow albedo) | Built | `polar_ems/simulation/microgrid.py` |
+| Synthetic 30-day datasets (summer, polar night with blizzards and icing) | Built | `polar_ems/simulation/synthetic_data.py` |
+| Load forecaster (HistGradientBoosting) and physics-based wind/PV conversion | Built | `polar_ems/forecasting/forecaster.py` |
+| 24 h rolling-horizon MILP (HiGHS via SciPy) | Built | `polar_ems/optimizer/milp_solver.py` |
+| Rule-based fallback controller | Built | `polar_ems/safety/fallback_controller.py` |
+| Sensor range checks, gap-fill, frozen-anemometer check | Built (basic) | `polar_ems/safety/sensor_validation.py` |
+| SQLite (WAL) telemetry, plan store, operator audit log | Built | `polar_ems/storage/db.py` |
+| FastAPI edge service, REST + WebSocket, operator dashboard | Built | `polar_ems/api/`, `static/` |
+| Modbus TCP / OPC-UA / MQTT ingestion | **Not built** (sensor IDs and protocol labels are placeholders) | n/a |
+| Quantile forecasts, Isolation Forest alerts, event-triggered replans | **Planned** | n/a |
 
 ---
 
-## 📂 Project Structure
+## Results
+
+Reproduce with `python run_simulation.py` (seed 42, about 2 minutes).
+
+Output of the current code:
+
+| Metric | Summer (30 d) | Polar night (30 d) | Combined (60 d) |
+| :-- | --: | --: | --: |
+| Always-on genset (baseline) | 12,457 L | 15,836 L | 28,292 L |
+| Tuned rule-based controller | 6,605 L | 10,563 L | 17,168 L |
+| POLAR EMS (planned dispatch) | 2,368 L | 8,667 L | 11,035 L |
+| Saving vs baseline | -81.0% | -45.3% | -61.0% |
+| Saving vs rule-based | -64.2% | -17.9% | -35.7% |
+| Genset fully-off hours | 599 h | 297 h | n/a |
+| MILP solves / avg solve time | 117 / 586 ms | 120 / 427 ms | 237 |
+| CO2 avoided vs baseline | 27.0 t | 19.2 t | 46.2 t |
+
+**Important:** the figures in the SIH idea deck (-29.7% vs always-on, -3.6% vs rules, 18.2 t CO2, 232 solves) are **not reproduced by this repository yet**. Treat the deck numbers and the table above as unreconciled until the issues in [Known limitations](#known-limitations) (oracle weather, plan-based accounting, baseline definition) are fixed and the benchmark is re-run. Update this table from `results/benchmark.json` once that file is generated by the runner.
+
+---
+
+## Architecture
 
 ```
-d:\Polar EMS\
-├── venv\                          # Python 3.12 Virtual Environment
-├── requirements.txt               # Frozen dependencies
-├── README.md                      # Project documentation
-├── start_edge_server.py           # Launch script for Edge Service & Dashboard
-├── run_simulation.py              # 60-day summer & winter benchmark runner
-├── polar_ems\
-│   ├── __init__.py
-│   ├── config.py                  # Station specs (Bharati, Maitri, Himadri)
-│   ├── models\
-│   │   ├── __init__.py
-│   │   └── schemas.py             # Pydantic data schemas
-│   ├── simulation\
-│   │   ├── __init__.py
-│   │   ├── microgrid.py           # Microgrid physics (Gensets, Cold Battery, Wind, PV)
-│   │   └── synthetic_data.py      # 30-day polar dataset generator
-│   ├── forecasting\
-│   │   ├── __init__.py
-│   │   └── forecaster.py          # HistGradientBoosting load and renewable forecaster
-│   ├── optimizer\
-│   │   ├── __init__.py
-│   │   └── milp_solver.py         # SciPy HiGHS MILP mathematical dispatch solver
-│   ├── safety\
-│   │   ├── __init__.py
-│   │   ├── fallback_controller.py # Rule-based deterministic backup controller
-│   │   └── sensor_validation.py   # Modbus/MQTT sensor range, drift, gap-fill checks
-│   ├── storage\
-│   │   ├── __init__.py
-│   │   └── db.py                  # SQLite WAL edge database & operator audit trail
-│   └── api\
-│       ├── __init__.py
-│       ├── main.py                # FastAPI edge service, static files, WebSocket
-│       └── routes.py              # REST endpoints (status, dispatch, what-if, approve, override)
-└── static\
-    ├── index.html                 # Polar dark operator dashboard (Slide 2 & 3 UI)
-    ├── style.css                  # Antarctic UI styling
-    └── app.js                     # Interactive charts, WebSocket streaming, scenario sandbox
+STATION (simulated)            EDGE SERVICE (FastAPI, runs offline)                  OPERATOR
+gensets, BMS, PV,   --->  1 Validate  ->  2 Forecast  ->  3 MILP optimizer  ->  4 Safety layer  --->  Dashboard
+wind, loads, met           range/gap      load: GBM        24 h horizon,          reserve, rule         approve / override
+                           checks         wind/PV: physics replanned every 6 h    fallback              audit log (SQLite)
+```
+
+- **Forecast:** `HistGradientBoostingRegressor` on hour, temperature, lag-1 h, lag-24 h and 24 h rolling mean. Wind and PV come from a power curve and a simple PV model.
+- **Optimizer:** minimizes fuel (linear diesel curve), start cost and battery wear. Constraints below.
+- **Safety:** reserve sized as 12% load + 25% PV + 30-70% wind (ramps with wind speed), 30% genset minimum load, 3 h minimum run, 25 m/s turbine cut-out.
+- **Operator:** the dashboard shows the plan; approve and override calls are written to the audit log.
+
+---
+
+## Quick start
+
+Requires Python 3.12 and a modern browser.
+
+```bash
+git clone https://github.com/jvnsuman/polar-ems.git
+cd polar-ems
+
+python -m venv .venv
+source .venv/bin/activate            # Windows PowerShell: .\.venv\Scripts\Activate.ps1
+
+pip install -r requirements.txt
+```
+
+Run the 60-day benchmark:
+
+```bash
+python run_simulation.py
+```
+
+Start the edge service and dashboard:
+
+```bash
+python start_edge_server.py
+```
+
+- Dashboard: <http://127.0.0.1:8000>
+- API docs: <http://127.0.0.1:8000/docs>
+
+The service creates `polar_ems.db` in the working directory on first start (git-ignored).
+
+---
+
+## API
+
+| Method | Path | Purpose |
+| :-- | :-- | :-- |
+| GET | `/api/status` | Station status, asset state, KPIs, alerts |
+| GET | `/api/dispatch` | Current 24 h dispatch plan |
+| GET | `/api/dispatch/week?season=polar_night` | 7-day dashboard series (see limitation 6) |
+| POST | `/api/scenarios/run` | Re-plan under a what-if scenario |
+| POST | `/api/operator/approve` | Approve the active plan (audit-logged) |
+| POST | `/api/operator/override` | Record a manual override (audit-logged) |
+| GET | `/api/sensors` | Sensor health from the validator |
+| GET | `/api/audit-log` | Last 25 operator actions |
+| GET | `/api/benchmarks` | Benchmark summary (currently static, see limitation 6) |
+| WS | `/ws/telemetry` | Status stream every 2 s |
+
+Approve and override currently record the decision only. Nothing is sent to a controller.
+
+---
+
+## Project structure
+
+```
+polar-ems/
+├── requirements.txt
+├── README.md
+├── LICENSE
+├── start_edge_server.py          # launches FastAPI + dashboard
+├── run_simulation.py             # 60-day benchmark (summer + polar night)
+├── polar_ems/
+│   ├── config.py                 # station, genset, battery, wind, PV parameters
+│   ├── models/schemas.py         # Pydantic schemas
+│   ├── simulation/
+│   │   ├── microgrid.py          # component physics
+│   │   └── synthetic_data.py     # dataset generator, dashboard week series
+│   ├── forecasting/forecaster.py # load GBM + wind/PV physics
+│   ├── optimizer/milp_solver.py  # HiGHS MILP dispatch
+│   ├── safety/
+│   │   ├── fallback_controller.py
+│   │   └── sensor_validation.py
+│   ├── storage/db.py             # SQLite WAL, audit log
+│   └── api/
+│       ├── main.py               # app, static files, WebSocket
+│       └── routes.py             # REST endpoints
+└── static/                       # index.html, style.css, app.js (SVG charts, no framework)
 ```
 
 ---
 
-## 🧪 Interactive What-If Scenarios Built-in
-1. **🌪️ Katabatic Blizzard:** Simulates a 32 m/s storm shutting down wind turbines, triggering automated spinning reserve response.
-2. **⚠️ Genset 1 Mechanical Trip:** Simulates primary generator failure with auto-failover to Genset-2 and battery peaking.
-3. **🌑 Polar Night:** Enforces 0 W/m² solar irradiance and -38°C Antarctic freeze.
-4. **🚢 Expedition Surge:** Simulates research ship arrival with +40% station power demand.
-5. **☀️ Austral Summer:** Continuous 24h midnight sun operation with peak solar generation.
+## Optimizer formulation
+
+Hourly steps, horizon T = 24, two gensets i in {1, 2}.
+
+**Variables per step t:** genset on/off `u_i` (binary), startup `v_i`, genset power `Pg_i` in [0, 80] kW, battery charge `Pchg` and discharge `Pdis` in [0, 100] kW, state of charge `SoC` in [0.20, 0.95], deferrable load `Pdef` in [0, 25] kW, curtailment `Pcurt`, unserved `Puns`.
+
+**Objective**
+
+```
+min  sum_t [ sum_i ( F0_i*u_i + k_i*Pg_i + Cstart_i*v_i )
+             + Cwear*(Pchg + Pdis) - 0.01*SoC + 0.02*Pcurt + 10000*Puns ]
+```
+
+with `F0 = 4.5 L/h`, `k = 0.235 L/kWh`, `Cstart = 3.5 L-equivalent`, `Cwear = 0.015`.
+
+**Constraints**
+
+- Power balance: `Pg1 + Pg2 + Pdis - Pchg - Pdef - Pcurt + Puns = Pload - (Ppv + Pwind)`
+- Min and max genset load: `24*u_i <= Pg_i <= 80*u_i`
+- Startup detection: `v_i(t) >= u_i(t) - u_i(t-1)`
+- Minimum run: `sum_{tau=t}^{min(t+2, T-1)} u_i(tau) >= min(3, T-t) * v_i(t)`
+- SoC continuity with cold-derated capacity and efficiency, evaluated at the **horizon-average** temperature:
+  `C_eff = C_nom * max(0.60, 1 - 0.008*max(0, 15 - T))`
+- Spinning reserve: `sum_i (80*u_i - Pg_i) + (100 - Pdis) >= R(t)`, `R = 0.12*load + 0.25*PV + a(v)*wind`, `a` in [0.30, 0.70]
+- Deferrable energy: `sum_t Pdef(t) = 100 kWh` per horizon
+- Wind cut-out: `Pwind = 0` for wind speed >= 25 m/s
+
+Planned solver stack from the deck (Pyomo, OR-Tools) is not used; the code calls `scipy.optimize.milp` directly.
+
+---
+
+## What-if scenarios
+
+Triggered from the dashboard or `POST /api/scenarios/run`:
+
+| Scenario | Effect on the plan inputs |
+| :-- | :-- |
+| `BLIZZARD_CUTOUT` | 32.5 m/s wind and -38 C for the first 12 h, wind output forced to 0 |
+| `GENSET_FAULT` | Genset 1 starts off (see limitation 8) |
+| `POLAR_NIGHT` | Irradiance 0, temperature capped at -32 C |
+| `EXPEDITION_SURGE` | Load x 1.4 |
+| `SUMMER_SUN` | Midnight-sun irradiance profile, mild temperatures |
+
+---
+
+## Known limitations
+
+Found in a code scan. Fix these before quoting any number externally.
+
+1. **Weather is not forecast, it is the truth.** The benchmark passes actual wind, temperature and irradiance into the forecaster as the "forecast", and the blizzard flag triggers an immediate replan. There is no NWP error model, so the deck's wind NMAE of 12-14% is not produced by this code. Only load is genuinely forecast.
+2. **"0 kWh unserved" is the plan's own slack, not realized shortfall.** The runner sums the optimizer's `Puns` variable, which is zero by construction when the forecast is feasible. It never re-checks the executed plan against actual load. A quick check on the polar-night month (plan executed open-loop against actual load) showed a residual shortfall of roughly 3.7 MWh over 417 hours. There is no real-time balancing step.
+3. **Baseline ignores renewables.** The always-on baseline burns diesel for the full load and never uses PV or wind, so part of the "saving" is just using renewables. Add an "always-on genset with renewables priority" baseline.
+4. **Minimum run time is not carried across replans.** `initial_run_hours` is passed to the optimizer but never used, so a genset that started recently can be switched off at the start of the next plan. A violation shows up in the polar-night run.
+5. **Rolling-horizon artifacts.** No terminal SoC constraint (each plan drains the battery by its end). The deferrable load needs 100 kWh in every 24 h window, so it can be pushed to the end of each horizon and effectively under-delivered. The last 24 h of each month are never re-planned, and fall back to the rule controller. Battery reserve counts full discharge power regardless of SoC. Cold derating uses the horizon-average temperature.
+6. **Dashboard and KPIs are partly hard-coded.** `/api/dispatch/week` uses a hand-written heuristic (`simulate_week_dispatch`), not the optimizer, and returns fixed metrics (-23.7%, 291 h, 33%). `/api/benchmarks` and parts of `/api/status` (291 h, 18.2 t, battery temperature, health, deferrable quota) are constants. The deck describes the dashboard as driven by simulation output, so this should be made true.
+7. **Weak load model.** The forecaster trains on only the first 96 h (72 samples) and is then evaluated on a series that includes that window. No persistence baseline, no hold-out split, no reported MAPE.
+8. **`GENSET_FAULT` does not model a fault.** It relabels outputs (genset 2 takes genset 1's power, possibly above 80 kW) without telling the optimizer that genset 1 is unavailable.
+9. **Operator actions do nothing.** Approve and override only write to the audit log. Operator identity is a fixed string. There is no authentication, and CORS allows all origins with credentials.
+10. **Stack differs from the deck.** The repo uses scikit-learn and SciPy/HiGHS, vanilla JS with hand-built SVG charts and no Chart.js. The deck lists LightGBM, React and ECharts as built.
+11. **No tests, no CI, unpinned dependencies.** Heavy work (dataset generation, model training, first MILP solve) runs at import time in `routes.py`.
+
+---
+
+## Roadmap
+
+Aligned with the pilot plan in the idea deck.
+
+| Phase | Goal |
+| :-- | :-- |
+| Now | Fix limitations 1-6, add `results/benchmark.json` as the single source for README, API and dashboard |
+| 0-3 months | Calibrate on NCPOR station logs and fuel data, backtest on ERA5 / BSRN / Antarctic AWS data, add persistence ablation and quantile forecasts |
+| 3-9 months | Shadow mode: read-only Modbus tap, compare plans with actual operation, no control |
+| 9-18 months | Supervised control with operator-approved setpoints, one genset-off trial in summer |
+
+---
+
+## References
+
+- Olivares et al. (2014), Trends in Microgrid Control. IEEE Trans. Smart Grid 5(4). doi:10.1109/TSG.2013.2295514
+- Parisio, Rikos, Glielmo (2014), A Model Predictive Control Approach to Microgrid Operation Optimization. IEEE TCST 22(5). doi:10.1109/TCST.2013.2295737
+- Holmgren, Hansen, Mikofski (2018), pvlib python. JOSS 3(29). doi:10.21105/joss.00884
+- Hersbach et al. (2020), The ERA5 global reanalysis. QJRMS 146. doi:10.1002/qj.3803
+- Huangfu, Hall (2018), Parallelizing the dual revised simplex method (HiGHS). Math. Prog. Comp. 10. doi:10.1007/s12532-017-0130-5
+- Lim, Arik, Loeff, Pfister (2021), Temporal Fusion Transformers (future option). arXiv:1912.09363
+
+## License
+
+MIT. See [LICENSE](LICENSE).
