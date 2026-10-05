@@ -8,8 +8,15 @@
 [![Theme](https://img.shields.io/badge/Theme-Clean_%26_Green_Technology-green.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-teal.svg)](LICENSE)
+[![Architecture Docs](https://img.shields.io/badge/Docs-Architecture-blue.svg)](docs/ARCHITECTURE.md)
+[![Evaluation Docs](https://img.shields.io/badge/Docs-Evaluation-green.svg)](docs/EVALUATION.md)
 
 POLAR EMS is an **advisory-first, offline-first** energy management system built specifically for polar station microgrids: diesel gensets, solar PV, wind turbines, cold-derated battery energy storage, and deferrable life-support loads (snow-melting / water-maker). It is calibrated for Indian Antarctic research stations (**Bharati** at 69°24'S in the Larsemann Hills, **Maitri** at 70°45'S in the Schirmacher Oasis) and High Arctic station **Himadri** (78°55'N in Ny-Ålesund, Svalbard) under the National Centre for Polar and Ocean Research (NCPOR / MoES).
+
+> 📖 **Deep Dive Documentation:**
+> - 🏛️ **[System Architecture & 6-Stage Pipeline](docs/ARCHITECTURE.md)**: Physical boundary, sensor validation, runtime state, and HiGHS optimizer formulation.
+> - 📊 **[Empirical Evaluation & Benchmarks](docs/EVALUATION.md)**: Slide 5 benchmark reproduction, open-loop shortfall analysis, and known edge constraints.
+> - 🗺️ **[End-to-End Pipeline SVG Flow](docs/assets/polar-ems-flow.svg)**: Complete 4-layer architecture diagram.
 
 ---
 
@@ -171,6 +178,11 @@ Open your browser to:
 
 ```
 D:\Polar EMS\
+├── docs/                            # Deep Technical Documentation & Architecture
+│   ├── assets/
+│   │   └── polar-ems-flow.svg       # End-to-end pipeline flow diagram
+│   ├── ARCHITECTURE.md              # 6-stage pipeline, component map & runtime state
+│   └── EVALUATION.md                # Benchmarks, deck replication & failure modes
 ├── polar_ems/                       # Core Polar EMS Engine Package
 │   ├── api/                         # FastAPI Edge REST & WebSocket Routes
 │   │   ├── main.py                  # App entrypoint and static file mounting
