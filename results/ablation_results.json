@@ -1,0 +1,158 @@
+{
+  "summer": {
+    "simulation_days": 7,
+    "season": "summer",
+    "ablation_results": {
+      "persistence_rule": {
+        "fuel_l": 1267.4,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 21,
+        "weather_input": "actual (rule controller sees current weather)",
+        "load_input": "none",
+        "load_mape": null,
+        "wind_nmae": null
+      },
+      "persistence_milp": {
+        "fuel_l": 603.2,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 13,
+        "weather_input": "24 h persistence forecast",
+        "load_input": "24 h persistence",
+        "load_mape": 5.49,
+        "wind_nmae": 35.2,
+        "solver_failures": 0
+      },
+      "persistence_load_true_weather": {
+        "fuel_l": 377.9,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 5,
+        "weather_input": "true (no forecast error)",
+        "load_input": "24 h persistence",
+        "load_mape": 5.49,
+        "wind_nmae": 0.0,
+        "solver_failures": 0
+      },
+      "polar_ems_ai": {
+        "fuel_l": 368.0,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 3,
+        "weather_input": "true (no forecast error)",
+        "load_input": "gradient boosting (ML)",
+        "load_mape": 8.14,
+        "wind_nmae": 0.0,
+        "solver_failures": 0
+      },
+      "perfect_oracle": {
+        "fuel_l": 359.5,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 5,
+        "weather_input": "true (no forecast error)",
+        "load_input": "true load",
+        "load_mape": 0.0,
+        "wind_nmae": 0.0,
+        "solver_failures": 0
+      }
+    },
+    "attribution": {
+      "optimizer_vs_rule_litres": 664.2,
+      "true_weather_vs_persistence_weather_litres": 225.3,
+      "ml_load_vs_persistence_load_litres": 9.9,
+      "ml_load_vs_persistence_load_pct": 2.62,
+      "remaining_gap_to_oracle_litres": 8.5
+    },
+    "ai_attribution": {
+      "fuel_saved_litres": 9.9,
+      "fuel_saved_pct": 2.62,
+      "mape_improvement_pct_pts": -2.65,
+      "wind_nmae_improvement_pct_pts": 0.0
+    },
+    "notes": [
+      "No weather forecast model exists in this repository; configs 3-5 receive true weather.",
+      "Plans are executed against actual conditions by a simple re-balancing policy (executor.py); it is not an optimum.",
+      "Single synthetic series per season; no confidence intervals."
+    ]
+  },
+  "polar_night": {
+    "simulation_days": 7,
+    "season": "polar_night",
+    "ablation_results": {
+      "persistence_rule": {
+        "fuel_l": 1955.1,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 14,
+        "weather_input": "actual (rule controller sees current weather)",
+        "load_input": "none",
+        "load_mape": null,
+        "wind_nmae": null
+      },
+      "persistence_milp": {
+        "fuel_l": 1877.7,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 22,
+        "weather_input": "24 h persistence forecast",
+        "load_input": "24 h persistence",
+        "load_mape": 8.19,
+        "wind_nmae": 43.19,
+        "solver_failures": 0
+      },
+      "persistence_load_true_weather": {
+        "fuel_l": 1573.7,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 11,
+        "weather_input": "true (no forecast error)",
+        "load_input": "24 h persistence",
+        "load_mape": 8.19,
+        "wind_nmae": 0.0,
+        "solver_failures": 0
+      },
+      "polar_ems_ai": {
+        "fuel_l": 1751.2,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 17,
+        "weather_input": "true (no forecast error)",
+        "load_input": "gradient boosting (ML)",
+        "load_mape": 8.1,
+        "wind_nmae": 0.0,
+        "solver_failures": 0
+      },
+      "perfect_oracle": {
+        "fuel_l": 1488.2,
+        "unserved_kwh": 0.0,
+        "deferrable_shed_kwh": 0.0,
+        "starts": 6,
+        "weather_input": "true (no forecast error)",
+        "load_input": "true load",
+        "load_mape": 0.0,
+        "wind_nmae": 0.0,
+        "solver_failures": 0
+      }
+    },
+    "attribution": {
+      "optimizer_vs_rule_litres": 77.4,
+      "true_weather_vs_persistence_weather_litres": 304.0,
+      "ml_load_vs_persistence_load_litres": -177.5,
+      "ml_load_vs_persistence_load_pct": -11.28,
+      "remaining_gap_to_oracle_litres": 263.0
+    },
+    "ai_attribution": {
+      "fuel_saved_litres": -177.5,
+      "fuel_saved_pct": -11.28,
+      "mape_improvement_pct_pts": 0.09,
+      "wind_nmae_improvement_pct_pts": 0.0
+    },
+    "notes": [
+      "No weather forecast model exists in this repository; configs 3-5 receive true weather.",
+      "Plans are executed against actual conditions by a simple re-balancing policy (executor.py); it is not an optimum.",
+      "Single synthetic series per season; no confidence intervals."
+    ]
+  }
+}
